@@ -202,7 +202,6 @@ void *workload_read(void *arg) {
 
 void *print_info_per_second(void *arg) {
     struct Print_Thread_Info* print_thread_info = (struct Print_Thread_Info*)arg;
-    FILE* IOPS_fp = NULL;
     assert_fopen(IOPS_fp, print_thread_info->outfile_name, "w", "print_info_per_second thread", NULL);
 
     static int running_time = 0;
@@ -216,7 +215,6 @@ void *print_info_per_second(void *arg) {
         fflush(IOPS_fp);
         statisic.IOPS[0] = statisic.IOPS[1] = 0;
     }
-    fclose(IOPS_fp);
 }
 
 void *running_workload(void *arg) {
@@ -375,6 +373,7 @@ int main(int argc, char **argv) // 1[target_device] 2[total_lbas_of_device] 3[tr
     {
         pthread_join(running_thread_info[thread_id].thread_pid, NULL);
     }
+    pthread_join(print_thread_info->thread_pid, NULL);
 
     //printf final IOPS
     time_t current_time = time(NULL);
