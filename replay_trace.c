@@ -252,6 +252,7 @@ void *running_workload(void *arg) {
                 memcpy(buffer, io_information.data, 4096);
                 int write_bytes = 0;
                 write_bytes = pwrite(fd, buffer, 4096, (off_t)io_information.lba + ((off_t)i<<9));
+                // ffprintf("lba: %lu %d %c\n", (io_information.lba), (io_information.size), (io_information.ope));
                 if(write_bytes == -1) {
                     ffprintf("%d: write %lu (%lu + %d*512) error!\n", running_thread_info->id, io_information.lba + (i<<9), io_information.lba, i);
                     perror("error write:");

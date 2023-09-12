@@ -12,7 +12,7 @@ rm /var/log/syslog
 rm /var/log/syslog.1
 rm /var/log/kern.log
 
-sudo cp /home/femu/mod/with_gc/dm-dedup.ko /lib/modules/4.19.0+/kernel/drivers/md/dm-dedup.ko
+# sudo cp /home/femu/mod/with_gc/dm-dedup.ko /lib/modules/4.19.0+/kernel/drivers/md/dm-dedup.ko
 
 Sector=512
 let KB=2*${Sector}
@@ -20,7 +20,7 @@ let MB=1024*${KB}
 let GB=1024*${MB}
 
 #create RAID----------------------------------------------------------
-Device_Count_in_RAID=5
+Device_Count_in_RAID=7
 RAID_Device_Name=/dev/md0
 RAID_Level=5
 ./create_RAID.sh ${Device_Count_in_RAID} ${RAID_Device_Name} ${RAID_Level}
@@ -41,14 +41,15 @@ RAID_Level=5
 # cd /home/femu
 
 #create deduplication system------------------------------------------
-let tt_Meta_Size_B=32*${GB}
+let tt_Meta_Size_B=8*${GB}
 Dedup_Name="mydedup"
-Dedup_System=cowbtree    #cowbtree, xremap
+Dedup_System=xremap    #cowbtree, xremap
 let DEDUP_THANSACTION=4*${MB}/4096
 Dedup_GC_Threshold=100
 Dedup_RMapTable_Ratio=100
-let Dedup_Meta_Cache_Size=2*${GB}
+let Dedup_Meta_Cache_Size=128*${MB}
 Dedup_GC_Block_Limit=${DEDUP_THANSACTION}
+If_Equal_Memory=0
 
 if [ $Dedup_System == "cowbtree" ]; then
     Dedup_RMapTable_Ratio=0
@@ -56,9 +57,12 @@ else
     Dedup_GC_Threshold=10000
 fi
 
+# Dedup_RMapTable_Ratio=20
+If_Equal_Memory=1
+
 ./create_dmdedup.sh ${Device_Count_in_RAID} ${RAID_Device_Name} ${tt_Meta_Size_B} \
                     ${Dedup_Name} ${Dedup_System} ${DEDUP_THANSACTION} ${Dedup_GC_Threshold} ${Dedup_RMapTable_Ratio} ${Dedup_Meta_Cache_Size} \
-                    ${Dedup_GC_Block_Limit} ${RAID_Level}
+                    ${Dedup_GC_Block_Limit} ${RAID_Level} ${If_Equal_Memory}
 
 #warm deduplication system---------------------------------------------
 cd /home/femu/vdbench
@@ -86,7 +90,7 @@ gcc replay_trace.c voidQueue.h voidQueue.c -o replay_trace -lpthread
 Target_Device="/dev/mapper/${Dedup_Name}"
 tt_Device_LBAs=`sudo blockdev --getsz $Target_Device`
 Target_Size=$tt_Device_LBAs
-Workload="mail-3"    # webvm homes mail-3
+Workload="webvm"    # webvm homes mail-3
 Thread_Count=2
 
 echo "" > ${DedupInfoFile}
@@ -94,7 +98,7 @@ dmsetup message ${Dedup_Name} 0 notice begin
 ./replay_trace ${Target_Device} ${Target_Size} ${Workload} ${IOPSInfoFile} ${Thread_Count}
 dmsetup message ${Dedup_Name} 0 notice end
 
-#cat /proc/mdstat >> /home/femu/dedup_info.log
+cat /proc/mdstat >> /home/femu/dedup_info.log
 
 ps -ef | grep watch | grep -v grep | grep -v watchdogd | awk '{print $2}' | xargs sudo kill -9
 
